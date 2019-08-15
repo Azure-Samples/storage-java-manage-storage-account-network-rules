@@ -4,12 +4,12 @@ languages:
 - java
 products:
 - azure
-services: Storage
-platforms: java
-author: yaohaizh
+extensions:
+- services: Storage
+- platforms: java
 ---
 
-## Getting Started with Storage - Manage Storage Account Network Rules - in Java ##
+# Getting Started with Storage - Manage Storage Account Network Rules - in Java #
 
 
   Azure Storage sample for managing storage account network rules -
