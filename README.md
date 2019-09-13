@@ -4,9 +4,8 @@ languages:
 - java
 products:
 - azure
-extensions:
-- services: Storage
-- platforms: java
+description: "Getting Started with Storage - Manage Storage Account Network Rules - in Java"
+urlFragment: storage-java-manage-storage-account-network-rules
 ---
 
 # Getting Started with Storage - Manage Storage Account Network Rules - in Java #
