@@ -1,24 +1,23 @@
-/**
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for
- * license information.
- */
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
-package com.microsoft.azure.management.storage.samples;
+package com.azure.resourcemanager.storage.samples;
 
-import com.microsoft.azure.management.Azure;
-import com.microsoft.azure.management.compute.KnownLinuxVirtualMachineImage;
-import com.microsoft.azure.management.compute.VirtualMachine;
-import com.microsoft.azure.management.compute.VirtualMachineSizeTypes;
-import com.microsoft.azure.management.network.Network;
-import com.microsoft.azure.management.network.PublicIPAddress;
-import com.microsoft.azure.management.network.ServiceEndpointType;
-import com.microsoft.azure.management.resources.fluentcore.arm.Region;
-import com.microsoft.azure.management.samples.Utils;
-import com.microsoft.azure.management.storage.StorageAccount;
-import com.microsoft.rest.LogLevel;
-
-import java.io.File;
+import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.policy.HttpLogDetailLevel;
+import com.azure.core.management.AzureEnvironment;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.resourcemanager.AzureResourceManager;
+import com.azure.resourcemanager.compute.models.KnownLinuxVirtualMachineImage;
+import com.azure.resourcemanager.compute.models.VirtualMachine;
+import com.azure.resourcemanager.compute.models.VirtualMachineSizeTypes;
+import com.azure.resourcemanager.network.models.Network;
+import com.azure.resourcemanager.network.models.PublicIpAddress;
+import com.azure.resourcemanager.network.models.ServiceEndpointType;
+import com.azure.core.management.Region;
+import com.azure.core.management.profile.AzureProfile;
+import com.azure.resourcemanager.samples.Utils;
+import com.azure.resourcemanager.storage.models.StorageAccount;
 
 /**
  * Azure Storage sample for managing storage account network rules -
@@ -32,16 +31,17 @@ import java.io.File;
 public final class ManageStorageAccountNetworkRules {
     /**
      * Main function which runs the actual sample.
-     * @param azure instance of the azure client
+     *
+     * @param azureResourceManager instance of the azure client
      * @return true if sample runs successfully
      */
-    public static boolean runSample(Azure azure) {
-        final String rgName = Utils.createRandomName("rgSTMS");
-        final String networkName = Utils.createRandomName("nw");
+    public static boolean runSample(AzureResourceManager azureResourceManager) {
+        final String rgName = Utils.randomResourceName(azureResourceManager, "rgSTMS", 8);
+        final String networkName = Utils.randomResourceName(azureResourceManager, "nw", 8);
         final String subnetName = "subnetA";
-        final String storageAccountName = Utils.createRandomName("sa");
-        final String publicIpName = Utils.createRandomName("pip");
-        final String vmName = Utils.createRandomName("vm");
+        final String storageAccountName = Utils.randomResourceName(azureResourceManager, "sa", 8);
+        final String publicIpName = Utils.randomResourceName(azureResourceManager, "pip", 8);
+        final String vmName = Utils.randomResourceName(azureResourceManager, "vm", 8);
 
         try {
             // ============================================================
@@ -49,14 +49,14 @@ public final class ManageStorageAccountNetworkRules {
 
             System.out.println("Creating a Virtual network and subnet with storage service subnet access enabled:");
 
-            final Network network = azure.networks().define(networkName)
+            final Network network = azureResourceManager.networks().define(networkName)
                     .withRegion(Region.US_EAST)
                     .withNewResourceGroup(rgName)
                     .withAddressSpace("10.0.0.0/28")
                     .defineSubnet(subnetName)
-                        .withAddressPrefix("10.0.0.8/29")
-                        .withAccessFromService(ServiceEndpointType.MICROSOFT_STORAGE)
-                        .attach()
+                    .withAddressPrefix("10.0.0.8/29")
+                    .withAccessFromService(ServiceEndpointType.MICROSOFT_STORAGE)
+                    .attach()
                     .create();
 
             System.out.println("Created a Virtual network with subnet:");
@@ -69,7 +69,7 @@ public final class ManageStorageAccountNetworkRules {
 
             System.out.println("Creating a storage account with access allowed only from the subnet :" + subnetId);
 
-            StorageAccount storageAccount = azure.storageAccounts().define(storageAccountName)
+            StorageAccount storageAccount = azureResourceManager.storageAccounts().define(storageAccountName)
                     .withRegion(Region.US_EAST)
                     .withExistingResourceGroup(rgName)
                     .withAccessFromSelectedNetworks()
@@ -84,7 +84,7 @@ public final class ManageStorageAccountNetworkRules {
 
             System.out.println("Creating a Public IP address");
 
-            final PublicIPAddress publicIPAddress = azure.publicIPAddresses()
+            final PublicIpAddress publicIPAddress = azureResourceManager.publicIpAddresses()
                     .define(publicIpName)
                     .withRegion(Region.US_EAST)
                     .withExistingResourceGroup(rgName)
@@ -99,7 +99,7 @@ public final class ManageStorageAccountNetworkRules {
 
             System.out.println("Creating a VM with the Public IP address");
 
-            VirtualMachine linuxVM = azure.virtualMachines()
+            VirtualMachine linuxVM = azureResourceManager.virtualMachines()
                     .define(vmName)
                     .withRegion(Region.US_EAST)
                     .withExistingResourceGroup(rgName)
@@ -142,39 +142,39 @@ public final class ManageStorageAccountNetworkRules {
             Utils.print(storageAccount);
 
             return true;
-        } catch (Exception f) {
-            System.out.println(f.getMessage());
-            f.printStackTrace();
         } finally {
             try {
                 System.out.println("Deleting Resource Group: " + rgName);
-                azure.resourceGroups().deleteByName(rgName);
+                azureResourceManager.resourceGroups().beginDeleteByName(rgName);
                 System.out.println("Deleted Resource Group: " + rgName);
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 System.out.println("Did not create any resources in Azure. No clean up is necessary");
             }
         }
-        return false;
     }
 
     /**
      * Main entry point.
+     *
      * @param args the parameters
      */
     public static void main(String[] args) {
         try {
-            final File credFile = new File(System.getenv("AZURE_AUTH_LOCATION"));
+            final AzureProfile profile = new AzureProfile(AzureEnvironment.AZURE);
+            final TokenCredential credential = new DefaultAzureCredentialBuilder()
+                .authorityHost(profile.getEnvironment().getActiveDirectoryEndpoint())
+                .build();
 
-            Azure azure = Azure.configure()
-                    .withLogLevel(LogLevel.BODY)
-                    .authenticate(credFile)
-                    .withDefaultSubscription();
+            AzureResourceManager azureResourceManager = AzureResourceManager
+                .configure()
+                .withLogLevel(HttpLogDetailLevel.BASIC)
+                .authenticate(credential, profile)
+                .withDefaultSubscription();
 
             // Print selected subscription
-            System.out.println("Selected subscription: " + azure.subscriptionId());
+            System.out.println("Selected subscription: " + azureResourceManager.subscriptionId());
 
-            runSample(azure);
+            runSample(azureResourceManager);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
